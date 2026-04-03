@@ -1,0 +1,21 @@
+# Environments
+.env
+.venv-py39/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Python
+*.db
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/

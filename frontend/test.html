@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test</title>
+</head>
+<body>
+    <h1>Frontend Test</h1>
+    <div id="app"></div>
+    <script>
+        // Test if React loads
+        try {
+            const response = await fetch('http://localhost:3000/');
+            const data = await response.json();
+            document.getElementById('app').innerHTML = 'Backend Status: ' + JSON.stringify(data);
+        } catch (error) {
+            document.getElementById('app').innerHTML = 'Error: ' + error.message;
+        }
+    </script>
+</body>
+</html>
