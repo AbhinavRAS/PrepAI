@@ -27,9 +27,16 @@ from database.mongodb import MongoDB
 app = FastAPI(title="AI Smart Interview Agent", version="2.0")
 
 # CORS Middleware
+# origins can be a comma-separated list of URLs from the FRONTEND_URL env var
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000,http://127.0.0.1:3000")
+origins = [url.strip() for url in frontend_url.split(",")]
+
+# Add additional default origins for development convenience
+origins.extend(["http://127.0.0.1:8000", "http://localhost:8000"])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://127.0.0.1:8000", "http://localhost:8000"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
