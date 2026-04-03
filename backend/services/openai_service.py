@@ -1,5 +1,7 @@
 import openai
 import os
+import json
+import re
 from typing import Dict, List, Any
 from openai import AsyncOpenAI
 
@@ -7,8 +9,27 @@ class OpenAIService:
     def __init__(self):
         self.api_key = os.getenv("GROQ_API_KEY")
         self.client = AsyncOpenAI(base_url="https://api.groq.com/openai/v1", api_key=self.api_key) if self.api_key else None
+        
+    def _parse_json_response(self, content: str) -> Any:
+        content = content.strip()
+        if content.startswith("```"):
+            lines = content.split('\n')
+            if lines[0].startswith("```"): lines.pop(0)
+            if lines[-1].startswith("```"): lines.pop()
+            content = '\n'.join(lines)
+        
+        # Find the first [ or {
+        match = re.search(r'\[.*\]|\{.*\}', content, re.DOTALL)
+        if match:
+            content = match.group(0)
+            
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            # Fallback to eval if json fails (to support legacy python dict string formatting)
+            return eval(content)
     
-    async def generate_questions(self, interview_type: str, rounds: List[str], level: str, name: str = None, email: str = None) -> List[Dict]:
+    async def generate_questions(self, interview_type: str, rounds: List[str], level: str, name: str = None, email: str = None, resume_text: str = "") -> List[Dict]:
         """Generate interview questions using OpenAI API"""
         questions = []
         
@@ -26,17 +47,33 @@ class OpenAIService:
 
             Consider their background and make questions personalized.
             Avoid generic templates. Make each question specific and engaging.
-            Return as JSON array with "question" and "hint" fields.
+            Return ONLY a valid JSON array with "question" and "hint" fields. Do NOT include markdown formatting or backticks.
             """
+            
+            if resume_text:
+                if category == "technical":
+                    prompt += f"""
+                    resume content:
+                    {resume_text}
+                    
+                    CRITICAL INSTRUCTION: For technical questions, you MUST specifically reference and test their knowledge on the exact skills, technologies, or projects explicitly mentioned in the resume provided above. Only test them on what is on their resume.
+                    """
+                else:
+                    prompt += f"""
+                    resume content:
+                    {resume_text}
+                    
+                    CRITICAL INSTRUCTION: For {category} questions, tie the questions explicitly back to their past experiences, companies, or jobs listed in their resume. You may expand beyond the exact resume boundaries to evaluate their general behavior, leadership, or culture fit, but the core context should come from their background.
+                    """
             
             try:
                 response = await self.client.chat.completions.create(
-                    model="llama3-70b-8192",
+                    model="llama-3.3-70b-versatile",
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.7
                 )
                 
-                generated_questions = eval(response.choices[0].message.content)
+                generated_questions = self._parse_json_response(response.choices[0].message.content)
                 
                 for i, q_data in enumerate(generated_questions):
                     question = {
@@ -68,7 +105,7 @@ class OpenAIService:
         
         try:
             response = await self.client.chat.completions.create(
-                model="llama3-70b-8192",
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7
             )
@@ -97,11 +134,13 @@ class OpenAIService:
         - feedback (array of strings)
         - strengths (array of strings)
         - improvements (array of strings)
+        
+        Return ONLY valid JSON. No markdown backticks.
         """
         
         try:
             response = await self.client.chat.completions.create(
-                model="llama3-70b-8192",
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3
             )
@@ -128,11 +167,13 @@ class OpenAIService:
         - gestures_score (0-100)
         - feedback (array of strings)
         - suggestions (array of strings)
+        
+        Return ONLY valid JSON. No markdown backticks.
         """
         
         try:
             response = await self.client.chat.completions.create(
-                model="llama3-70b-8192",
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3
             )
@@ -234,7 +275,7 @@ class OpenAIService:
                 - Key strengths
                 - Improvement suggestions
 
-                Return as JSON:
+                Return as ONLY valid JSON. Do not write anything outside the brackets:
                 {{
                     "technical_accuracy": 8,
                     "communication_clarity": 7,
@@ -255,12 +296,12 @@ class OpenAIService:
                 """
                 
             response = await self.client.chat.completions.create(
-                    model="llama3-70b-8192",
+                    model="llama-3.3-70b-versatile",
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.3
                 )
                 
-            return eval(response.choices[0].message.content)
+            return self._parse_json_response(response.choices[0].message.content)
                 
         except Exception as e:
             print(f"⚠️ Enhanced evaluation failed: {e}")

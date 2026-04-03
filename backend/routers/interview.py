@@ -1,4 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from pydantic import BaseModel
+from typing import List, Optional, Dict
 from services.whisper_service import WhisperService
 from services.openai_service import OpenAIService
 from services.huggingface_service import HuggingFaceService
@@ -8,6 +10,24 @@ from database.mongodb import MongoDB
 import uuid
 import os
 from datetime import datetime
+
+class MockQuestion(BaseModel):
+    id: str
+    question: str
+    type: str
+    category: str
+    difficulty: str
+    hint: Optional[str] = None
+    audio_url: Optional[str] = None
+
+class MockInterviewData(BaseModel):
+    name: str
+    email: str
+    interview_type: str
+    rounds: List[str]
+    level: str
+    questions: List[MockQuestion]
+    session_id: str
 
 router = APIRouter()
 
@@ -24,14 +44,25 @@ async def start_interview(
     email: str = Form(...),
     interview_type: str = Form(...),
     rounds: str = Form(...),
-    level: str = Form(...)
+    level: str = Form(...),
+    resume: UploadFile = File(None)
 ):
     try:
         session_id = str(uuid.uuid4())
         rounds_list = rounds.split(',') if rounds else ['tr', 'mr', 'hr']
         
+        resume_text = ""
+        if resume and resume.filename.endswith('.pdf'):
+            try:
+                from pypdf import PdfReader
+                reader = PdfReader(resume.file)
+                resume_text = "\n".join(page.extract_text() for page in reader.pages)
+                print(f"✅ Resume parsed successfully! Length: {len(resume_text)} characters")
+            except Exception as e:
+                print(f"⚠️ Failed to parse resume: {e}")
+        
         # Generate questions using OpenAI
-        questions = await openai_service.generate_questions(interview_type, rounds_list, level, name, email)
+        questions = await openai_service.generate_questions(interview_type, rounds_list, level, name, email, resume_text)
         
         # Generate audio for each question
         for question in questions:
@@ -63,6 +94,30 @@ async def start_interview(
             "session_id": session_id,
             "questions": questions,
             "message": "Interview started successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/start-mock")
+async def start_mock_interview(data: MockInterviewData):
+    try:
+        interview_data = {
+            "_id": data.session_id,
+            "name": data.name,
+            "email": data.email,
+            "interview_type": data.interview_type,
+            "rounds": data.rounds,
+            "level": data.level,
+            "questions": [q.dict() for q in data.questions],
+            "answers": [],
+            "start_time": datetime.now()
+        }
+        
+        await db.create_interview(interview_data)
+        
+        return {
+            "session_id": data.session_id,
+            "message": "Mock interview registered successfully"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

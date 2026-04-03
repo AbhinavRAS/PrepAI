@@ -1,6 +1,8 @@
 import os
 import sys
 import io
+from dotenv import load_dotenv
+load_dotenv()
 
 # Force UTF-8 on Windows
 if sys.stdout.encoding != 'utf-8':

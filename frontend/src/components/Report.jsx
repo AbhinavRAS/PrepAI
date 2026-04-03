@@ -228,15 +228,18 @@ export default function Report({ report }) {
       )}
 
       {/* Action Buttons */}
-      <div className="mt-8 flex justify-center space-x-4">
-        <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200">
+      <div className="mt-8 flex justify-center space-x-4 print:hidden">
+        <button 
+          onClick={() => window.print()}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200"
+        >
           📊 Download Report
         </button>
-        <button className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-200">
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-200"
+        >
           🔄 Practice Again
-        </button>
-        <button className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition duration-200">
-          📧 Email Report
         </button>
       </div>
     </div>

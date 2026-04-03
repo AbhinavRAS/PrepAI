@@ -1,5 +1,7 @@
 import openai
 import os
+import json
+import re
 from typing import Dict, List, Any
 from datetime import datetime
 from openai import AsyncOpenAI
@@ -8,6 +10,21 @@ class HolisticEvaluationService:
     def __init__(self):
         self.api_key = os.getenv("GROQ_API_KEY")
         self.client = AsyncOpenAI(base_url="https://api.groq.com/openai/v1", api_key=self.api_key) if self.api_key else None
+        
+    def _parse_json_response(self, content: str) -> Any:
+        content = content.strip()
+        if content.startswith("```"):
+            lines = content.split('\n')
+            if lines[0].startswith("```"): lines.pop(0)
+            if lines[-1].startswith("```"): lines.pop()
+            content = '\n'.join(lines)
+        match = re.search(r'\[.*\]|\{.*\}', content, re.DOTALL)
+        if match:
+            content = match.group(0)
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            return eval(content)
     
     async def evaluate_session_holistically(self, interview_data: Dict, answers: List[Dict], body_language_data: List[Dict]) -> Dict:
         """Comprehensive session-level evaluation"""
@@ -98,21 +115,23 @@ class HolisticEvaluationService:
         3. Coherence of personal narrative/experience
         4. Alignment of skills and experience mentioned
         
-        Return JSON with:
+        Return ONLY valid JSON with:
         - consistency_score (0-100)
         - contradictions_found (array)
         - strengths_consistency (array)
         - consistency_feedback (array)
+        
+        Do NOT wrap the output in markdown backticks.
         """
         
         try:
             response = await self.client.chat.completions.create(
-                model="llama3-70b-8192",
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3
             )
             
-            return eval(response.choices[0].message.content)
+            return self._parse_json_response(response.choices[0].message.content)
         except Exception as e:
             print(f"⚠️ Consistency analysis failed: {e}")
             return {"consistency_score": 75, "contradictions_found": [], "strengths_consistency": [], "consistency_feedback": ["Good overall consistency"]}
@@ -136,22 +155,24 @@ class HolisticEvaluationService:
         4. Technical confidence and clarity
         5. Knowledge progression across questions
         
-        Return JSON with:
+        Return ONLY valid JSON with:
         - technical_score (0-100)
         - technical_strengths (array)
         - technical_gaps (array)
         - technical_feedback (array)
         - knowledge_areas (array of topics mentioned)
+        
+        Do NOT wrap the output in markdown backticks.
         """
         
         try:
             response = await self.client.chat.completions.create(
-                model="llama3-70b-8192",
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3
             )
             
-            return eval(response.choices[0].message.content)
+            return self._parse_json_response(response.choices[0].message.content)
         except Exception as e:
             print(f"⚠️ Technical assessment failed: {e}")
             return {"technical_score": 70, "technical_strengths": [], "technical_gaps": [], "technical_feedback": ["Technical assessment completed"]}
@@ -170,22 +191,24 @@ class HolisticEvaluationService:
         4. Response structure and organization
         5. Adaptability to different question types
         
-        Return JSON with:
+        Return ONLY valid JSON with:
         - communication_score (0-100)
         - communication_strengths (array)
         - communication_improvements (array)
         - communication_patterns (array)
         - progression_analysis (string)
+        
+        Do NOT wrap the output in markdown backticks.
         """
         
         try:
             response = await self.client.chat.completions.create(
-                model="llama3-70b-8192",
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3
             )
             
-            return eval(response.choices[0].message.content)
+            return self._parse_json_response(response.choices[0].message.content)
         except Exception as e:
             print(f"⚠️ Communication analysis failed: {e}")
             return {"communication_score": 75, "communication_strengths": [], "communication_improvements": [], "communication_patterns": [], "progression_analysis": "Steady communication throughout"}
@@ -279,23 +302,25 @@ class HolisticEvaluationService:
         4. Specific recommendations
         5. Career progression suggestions
         
-        Return JSON with:
+        Return ONLY valid JSON with:
         - overall_assessment (string)
         - key_strengths (array)
         - improvement_areas (array)
         - specific_recommendations (array)
         - career_suggestions (array)
         - next_steps (array)
+        
+        Do NOT wrap the output in markdown backticks.
         """
         
         try:
             response = await self.client.chat.completions.create(
-                model="llama3-70b-8192",
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7
             )
             
-            return eval(response.choices[0].message.content)
+            return self._parse_json_response(response.choices[0].message.content)
         except Exception as e:
             print(f"⚠️ Comprehensive feedback generation failed: {e}")
             return {

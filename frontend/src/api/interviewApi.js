@@ -19,12 +19,25 @@ export const startInterview = async (data) => {
     formData.append('interview_type', data.interview_type);
     formData.append('rounds', data.rounds);
     formData.append('level', data.level || 'Entry Level');
+    if (data.resume) {
+      formData.append('resume', data.resume);
+    }
 
     const response = await api.post('/api/interview/start', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
+    return response;
+  } catch (error) {
+    console.error("API Error:", error);
+    throw error;
+  }
+};
+
+export const startMockSession = async (data) => {
+  try {
+    const response = await api.post('/api/interview/start-mock', data);
     return response;
   } catch (error) {
     console.error("API Error:", error);

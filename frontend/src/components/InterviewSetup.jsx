@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { startInterview } from "../api/interviewApi";
+import { startInterview, startMockSession } from "../api/interviewApi";
 import InterviewSession from "./InterviewSession";
 
 export default function InterviewSetup({ onStart }) {
@@ -8,7 +8,8 @@ export default function InterviewSetup({ onStart }) {
     email: "",
     interviewType: "",
     rounds: [],
-    level: "medium"
+    level: "medium",
+    resume: null
   });
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +37,7 @@ export default function InterviewSetup({ onStart }) {
     }));
   };
 
-  const startMockInterview = () => {
+  const startMockInterview = async () => {
     console.log("=== Starting Mock Interview Debug ===");
     console.log("1. Function called");
     
@@ -139,6 +140,19 @@ export default function InterviewSetup({ onStart }) {
       console.log("8. Calling onStart with config:", config);
       console.log("9. onStart function:", typeof onStart);
       
+      // Register mock interview in database
+      setLoading(true);
+      await startMockSession({
+        name: config.name || "Mock Candidate",
+        email: config.email || "mock@example.com",
+        interview_type: config.interviewType || "technical",
+        rounds: config.rounds || ["tr"],
+        level: config.level,
+        questions: config.questions,
+        session_id: config.sessionId
+      });
+      setLoading(false);
+
       // Start mock interview
       onStart(config);
       
@@ -167,7 +181,8 @@ export default function InterviewSetup({ onStart }) {
         email: formData.email,
         interview_type: formData.interviewType,
         rounds: formData.rounds.join(','),
-        level: "Entry Level"
+        level: "Entry Level",
+        resume: formData.resume
       });
       
       // If GPT interview succeeds
@@ -267,6 +282,19 @@ export default function InterviewSetup({ onStart }) {
                   </label>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Upload Resume (PDF only, Optional)
+              </label>
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={(e) => setFormData(prev => ({ ...prev, resume: e.target.files[0] }))}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">If provided, the AI will tailor your technical and HR questions to your experience.</p>
             </div>
 
             <div className="space-y-4">
